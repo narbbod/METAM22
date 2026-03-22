@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sr. Sánchez - Gestión de Años</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #09090b;
+            --card-bg: #18181b;
+            --accent: #f59e0b;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-dark);
+            color: #fafafa;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .glass-card {
+            background: rgba(24, 24, 27, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 24px;
+        }
+
+        .progress-bar-container {
+            height: 12px;
+            background: #27272a;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #f59e0b, #fbbf24);
+            transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .step-card {
+            transition: transform 0.2s ease, background-color 0.3s ease;
+        }
+
+        .step-card:active {
+            transform: scale(0.97);
+        }
+
+        .completed-card {
+            background: rgba(245, 158, 11, 0.1);
+            border-color: rgba(245, 158, 11, 0.4);
+        }
+
+        .nav-btn {
+            transition: all 0.3s ease;
+        }
+
+        .nav-btn.active {
+            color: #f59e0b;
+        }
+
+        .year-header {
+            position: sticky;
+            top: 0;
+            z-index: 30;
+            background: var(--bg-dark);
+            padding: 16px 0;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .animate-slide {
+            animation: slideUp 0.4s ease forwards;
+        }
+
+        .hidden-view {
+            display: none;
+        }
+
+        #modal-overlay {
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(8px);
+        }
+
+        input[type="number"] {
+            background: #27272a;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            border-radius: 12px;
+            padding: 10px;
+            width: 100%;
+            outline: none;
+        }
+
+        input[type="number"]:focus {
+            border-color: #f59e0b;
+        }
+
+        .currency-badge {
+            background: rgba(245, 158, 11, 0.1);
+            color: #f59e0b;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body class="p-4 pb-32">
+
+    <header class="mt-6 mb-8 px-2 animate-slide">
+        <div class="flex justify-between items-start">
+            <div>
+                <h1 id="view-title" class="text-3xl font-extrabold tracking-tight text-white">Sr. Sánchez</h1>
+                <p id="current-date" class="text-amber-500/80 text-[10px] uppercase tracking-[0.2em] font-bold mt-1"></p>
+            </div>
+            <div class="text-right">
+                <p id="view-subtitle" class="text-zinc-500 font-medium text-sm">S/ <span id="monthly-display">714</span> mensuales</p>
+            </div>
+        </div>
+    </header>
+
+    <div id="view-list">
+        <div class="glass-card p-6 mb-8 sticky top-4 z-40 shadow-2xl animate-slide" style="animation-delay: 0.1s;">
+            <div class="flex justify-between items-start mb-6">
+                <div>
+                    <p class="text-[10px] uppercase tracking-[0.2em] text-zinc-500 mb-1 font-bold">Total Acumulado</p>
+                    <div class="text-4xl font-bold text-amber-500" id="total-saved">S/ 0</div>
+                </div>
+                <div class="bg-zinc-800/50 px-3 py-1 rounded-full border border-white/5 text-right">
+                    <span id="percent-text" class="text-xs font-bold text-white block">0%</span>
+                </div>
+            </div>
+            
+            <div class="progress-bar-container mb-4">
+                <div id="main-progress" class="progress-fill" style="width: 0%"></div>
+            </div>
+
+            <div class="flex justify-between text-xs font-semibold">
+                <span id="steps-count" class="text-zinc-400">0 / 0 meses</span>
+                <span id="remaining-text" class="text-amber-500/80">S/ 0 restantes</span>
+            </div>
+        </div>
+
+        <div id="years-container"></div>
+        
+        <button onclick="addYear()" class="w-full mt-4 mb-10 p-8 glass-card border-dashed border-2 border-amber-500/20 flex flex-col items-center justify-center gap-3 animate-slide">
+            <div class="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500">
+                <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M12 5v14M5 12h14" /></svg>
+            </div>
+            <span class="text-sm font-bold text-zinc-400 uppercase tracking-widest">Añadir año al plan</span>
+        </button>
+    </div>
+
+    <div id="view-charts" class="hidden-view animate-slide">
+        <div class="grid grid-cols-1 gap-6">
+            <div class="glass-card p-6">
+                <h3 class="text-lg font-bold mb-4">Progreso Global</h3>
+                <canvas id="savingsChart" height="200"></canvas>
+            </div>
+
+            <div class="glass-card p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-bold">Cambio a Pesos</h3>
+                    <span class="currency-badge">COP 🇨🇴</span>
+                </div>
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-[10px] uppercase font-bold text-zinc-500 mb-1 block">Tasa de Cambio (1 Sol a COP)</label>
+                        <input type="number" id="exchange-rate" value="1050" oninput="convertCurrency()" class="text-sm">
+                    </div>
+                    <div class="p-4 bg-amber-500/5 rounded-2xl border border-amber-500/10">
+                        <p class="text-[10px] uppercase font-bold text-amber-500 mb-1">Tu ahorro actual en COP</p>
+                        <div id="converted-amount" class="text-2xl font-black text-white">$ 0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-card p-6 bg-gradient-to-br from-amber-500/20 to-transparent border-amber-500/20">
+                <h3 class="text-amber-500 text-sm font-bold uppercase tracking-widest mb-2">Resumen Operativo</h3>
+                <p id="summary-text" class="text-zinc-300 text-sm leading-relaxed"></p>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-overlay" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-6">
+        <div class="glass-card w-full max-w-sm p-8 border-white/10 animate-slide">
+            <h3 class="text-2xl font-bold text-white mb-6">Ajustes del Plan</h3>
+            <div class="mb-8">
+                <label class="text-[10px] uppercase font-bold text-zinc-500 mb-2 block">Monto Mensual (S/)</label>
+                <input type="number" id="input-monthly" class="text-xl font-bold">
+            </div>
+            <div class="space-y-3">
+                <button onclick="updateMonthlyAmount()" class="w-full py-4 bg-amber-500 rounded-2xl text-black font-bold text-sm">Guardar cambios</button>
+                <button onclick="deleteAction('all')" class="w-full py-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-sm font-bold text-red-500">Reiniciar todo</button>
+            </div>
+            <button onclick="closeModal()" class="w-full mt-6 py-2 text-zinc-500 text-xs font-bold uppercase tracking-widest">Cerrar</button>
+        </div>
+    </div>
+
+    <div class="fixed bottom-8 left-1/2 -translate-x-1/2 w-[90%] max-w-md h-16 glass-card flex items-center justify-around px-6 shadow-2xl z-50 border-white/10">
+        <button onclick="switchView('list')" id="btn-list" class="nav-btn active p-2">
+            <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+        </button>
+        <button onclick="openModal()" class="text-zinc-500 hover:text-amber-500 p-2">
+            <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+        </button>
+        <button onclick="switchView('charts')" id="btn-charts" class="nav-btn text-zinc-500 p-2">
+            <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        </button>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'srSanchez_v6_final';
+        let state = { completedMonths: [], totalYears: 5, monthlyAmount: 714 };
+        let savingsChartInstance = null;
+        let currentTotalSoles = 0;
+
+        function setDate() {
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('current-date').innerText = new Date().toLocaleDateString('es-ES', options);
+        }
+
+        function loadState() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) state = JSON.parse(saved);
+            document.getElementById('monthly-display').innerText = state.monthlyAmount;
+            document.getElementById('input-monthly').value = state.monthlyAmount;
+        }
+
+        function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+
+        // Función que realiza la conversión
+        function convertCurrency() {
+            const rate = parseFloat(document.getElementById('exchange-rate').value) || 0;
+            const cop = currentTotalSoles * rate;
+            document.getElementById('converted-amount').innerText = `$ ${cop.toLocaleString('es-CO')}`;
+        }
+
+        function updateUI() {
+            const container = document.getElementById('years-container');
+            container.innerHTML = '';
+            currentTotalSoles = 0;
+            const totalMonths = state.totalYears * 12;
+
+            for (let y = 1; y <= state.totalYears; y++) {
+                const yearDiv = document.createElement('div');
+                yearDiv.className = "mb-8";
+                yearDiv.innerHTML = `
+                    <div class="year-header flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <span class="w-6 h-[2px] bg-amber-500/40"></span>
+                            <h3 class="text-[11px] font-black uppercase tracking-[0.3em] text-zinc-500">Año ${y}</h3>
+                        </div>
+                        <button onclick="removeYear(${y})" class="text-zinc-600 hover:text-red-500 p-2">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-1 gap-3 mt-2" id="grid-y-${y}"></div>
+                `;
+                container.appendChild(yearDiv);
+                
+                const grid = document.getElementById(`grid-y-${y}`);
+                for (let m = 1; m <= 12; m++) {
+                    const id = (y - 1) * 12 + m;
+                    const isDone = state.completedMonths.includes(id);
+                    if (isDone) currentTotalSoles += state.monthlyAmount;
+
+                    const card = document.createElement('div');
+                    card.className = `step-card glass-card p-5 flex items-center justify-between cursor-pointer border-transparent ${isDone ? 'completed-card' : ''}`;
+                    card.onclick = () => toggleMonth(id);
+                    card.innerHTML = `
+                        <div class="flex items-center gap-4">
+                            <div class="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs ${isDone ? 'bg-amber-500 text-black' : 'bg-zinc-800 text-zinc-600'}">${id}</div>
+                            <div>
+                                <p class="text-[9px] uppercase font-bold text-zinc-500">Mes ${m}</p>
+                                <p class="text-lg font-bold ${isDone ? 'text-white' : 'text-zinc-400'}">S/ ${state.monthlyAmount}</p>
+                            </div>
+                        </div>
+                        <div class="w-6 h-6 rounded-full border-2 border-zinc-800 flex items-center justify-center ${isDone ? 'bg-amber-500 border-amber-500' : ''}">
+                            ${isDone ? '<svg width="12" height="12" fill="none" stroke="black" viewBox="0 0 24 24" stroke-width="4"><path d="M5 13l4 4L19 7" /></svg>' : ''}
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                }
+            }
+
+            const totalGoal = state.monthlyAmount * totalMonths;
+            const percent = Math.round((currentTotalSoles / totalGoal) * 100) || 0;
+            
+            document.getElementById('total-saved').innerText = `S/ ${currentTotalSoles.toLocaleString()}`;
+            document.getElementById('main-progress').style.width = `${percent}%`;
+            document.getElementById('percent-text').innerText = `${percent}%`;
+            document.getElementById('steps-count').innerText = `${state.completedMonths.length} / ${totalMonths} meses`;
+            document.getElementById('remaining-text').innerText = `S/ ${(totalGoal - currentTotalSoles).toLocaleString()} restantes`;
+            document.getElementById('summary-text').innerHTML = `Has completado el ${percent}% de tu meta total proyectada a ${state.totalYears} años.`;
+            
+            // Llamamos a la conversión para que la casilla de estadísticas esté siempre al día
+            convertCurrency();
+        }
+
+        function toggleMonth(id) {
+            const idx = state.completedMonths.indexOf(id);
+            idx === -1 ? state.completedMonths.push(id) : state.completedMonths.splice(idx, 1);
+            updateUI();
+            saveState();
+        }
+
+        function updateMonthlyAmount() {
+            const val = parseInt(document.getElementById('input-monthly').value);
+            if (val > 0) {
+                state.monthlyAmount = val;
+                document.getElementById('monthly-display').innerText = val;
+                saveState();
+                updateUI();
+                closeModal();
+            }
+        }
+
+        function addYear() { state.totalYears++; updateUI(); saveState(); }
+
+        function removeYear(yearNum) {
+            if (state.totalYears <= 1) return;
+            if (confirm(`¿Eliminar Año ${yearNum}?`)) {
+                const start = (yearNum - 1) * 12 + 1;
+                const end = yearNum * 12;
+                state.completedMonths = state.completedMonths.filter(m => m < start || m > end);
+                state.completedMonths = state.completedMonths.map(m => m > end ? m - 12 : m);
+                state.totalYears--;
+                updateUI();
+                saveState();
+            }
+        }
+
+        function openModal() { document.getElementById('modal-overlay').classList.remove('hidden'); }
+        function closeModal() { document.getElementById('modal-overlay').classList.add('hidden'); }
+
+        function deleteAction(type) {
+            if (type === 'all' && confirm("¿Reiniciar todo el plan?")) {
+                state.completedMonths = [];
+                state.totalYears = 5;
+                updateUI();
+                saveState();
+                closeModal();
+            }
+        }
+
+        function switchView(view) {
+            const list = document.getElementById('view-list');
+            const charts = document.getElementById('view-charts');
+            const btnL = document.getElementById('btn-list');
+            const btnC = document.getElementById('btn-charts');
+
+            if (view === 'list') {
+                list.classList.remove('hidden-view');
+                charts.classList.add('hidden-view');
+                btnL.classList.add('active');
+                btnC.classList.remove('active');
+                document.getElementById('view-title').innerText = "Sr. Sánchez";
+            } else {
+                list.classList.add('hidden-view');
+                charts.classList.remove('hidden-view');
+                btnL.classList.remove('active');
+                btnC.classList.add('active');
+                document.getElementById('view-title').innerText = "Estadísticas";
+                initCharts();
+                // Al cambiar a vista de gráficos, forzamos actualización del cambio
+                convertCurrency();
+            }
+        }
+
+        function initCharts() {
+            const current = currentTotalSoles;
+            const total = state.totalYears * 12 * state.monthlyAmount;
+            if (savingsChartInstance) savingsChartInstance.destroy();
+            savingsChartInstance = new Chart(document.getElementById('savingsChart').getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: ['Actual', 'Meta'],
+                    datasets: [{
+                        data: [current, total],
+                        backgroundColor: ['#f59e0b', '#18181b'],
+                        borderRadius: 12
+                    }]
+                },
+                options: { plugins: { legend: { display: false } }, scales: { y: { display: false }, x: { grid: { display: false } } } }
+            });
+        }
+
+        window.onload = () => { setDate(); loadState(); updateUI(); };
+    </script>
+</body>
+</html>
