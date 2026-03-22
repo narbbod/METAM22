@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Sr. Sánchez - Gestión de Años</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #09090b;
+            --card-bg: #18181b;
+            --accent: #f59e0b;
+            --transition-smooth: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-dark);
+            color: #fafafa;
+            -webkit-tap-highlight-color: transparent;
+            overflow-x: hidden;
+            overscroll-behavior-y: contain;
+        }
+
+        /* Estética de App Nativa */
+        .glass-card {
+            background: rgba(24, 24, 27, 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 28px;
+            transition: var(--transition-smooth);
+        }
+
+        /* Animaciones de entrada */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .animate-in {
+            animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        /* Efectos de Presión (Celular) */
+        .step-card {
+            transition: transform 0.2s cubic-bezier(0.33, 1, 0.68, 1), background-color 0.3s ease;
+            user-select: none;
+        }
+
+        .step-card:active {
+            transform: scale(0.96);
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .completed-card {
+            background: rgba(245, 158, 11, 0.08) !important;
+            border-color: rgba(245, 158, 11, 0.3) !important;
+        }
+
+        /* Transición entre Vistas */
+        .view-container {
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+        }
+
+        .view-hidden {
+            display: none;
+            opacity: 0;
+            transform: translateX(20px);
+        }
+
+        /* Barra de progreso fluida */
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #f59e0b, #fbbf24);
+            transition: width 0.8s cubic-bezier(0.65, 0, 0.35, 1);
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.3);
+        }
+
+        /* Checkbox Animado */
+        .check-pop {
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        #modal-overlay {
+            transition: opacity 0.3s ease;
+        }
+
+        /* Nav Bar Estilo iOS */
+        .nav-blur {
+            background: rgba(18, 18, 18, 0.8);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+        }
+    </style>
+</head>
+<body class="p-4 pb-32">
+
+    <header class="mt-8 mb-8 px-2 animate-in">
+        <div class="flex justify-between items-start">
+            <div>
+                <h1 id="view-title" class="text-3xl font-extrabold tracking-tight text-white">Sr. Sánchez</h1>
+                <p id="current-date" class="text-amber-500/90 text-[10px] uppercase tracking-[0.2em] font-bold mt-1"></p>
+            </div>
+            <div class="text-right">
+                <p class="text-zinc-500 font-medium text-xs">Ahorro Mensual</p>
+                <p class="text-white font-bold text-lg">S/ <span id="monthly-display">0</span></p>
+            </div>
+        </div>
+    </header>
+
+    <main id="view-list" class="view-container">
+        <div class="glass-card p-6 mb-8 sticky top-4 z-40 shadow-2xl animate-in" style="animation-delay: 0.1s;">
+            <div class="flex justify-between items-start mb-6">
+                <div>
+                    <p class="text-[10px] uppercase tracking-[0.2em] text-zinc-400 mb-1 font-bold">Progreso Total</p>
+                    <div class="text-4xl font-black text-amber-500 tracking-tight" id="total-saved">S/ 0</div>
+                </div>
+                <div class="bg-amber-500/10 px-4 py-1.5 rounded-full border border-amber-500/20">
+                    <span id="percent-text" class="text-xs font-black text-amber-500">0%</span>
+                </div>
+            </div>
+            
+            <div class="h-3 bg-zinc-800 rounded-full overflow-hidden mb-4">
+                <div id="main-progress" class="progress-fill" style="width: 0%"></div>
+            </div>
+
+            <div class="flex justify-between text-[11px] font-bold uppercase tracking-wider">
+                <span id="steps-count" class="text-zinc-500">0 / 0 Meses</span>
+                <span id="remaining-text" class="text-amber-500/60">S/ 0</span>
+            </div>
+        </div>
+
+        <div id="years-container"></div>
+        
+        <button onclick="addYear()" class="w-full mt-4 mb-10 p-8 glass-card border-dashed border-2 border-amber-500/20 flex flex-col items-center justify-center gap-3 active:scale-95">
+            <div class="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500">
+                <svg width="28" height="28" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M12 5v14M5 12h14" /></svg>
+            </div>
+            <span class="text-xs font-black text-zinc-400 uppercase tracking-[0.2em]">Añadir Año</span>
+        </button>
+    </main>
+
+    <main id="view-charts" class="view-container view-hidden">
+        <div class="grid grid-cols-1 gap-6">
+            <div class="glass-card p-6">
+                <h3 class="text-sm font-black uppercase tracking-widest text-zinc-400 mb-4">Crecimiento</h3>
+                <canvas id="savingsChart" height="220"></canvas>
+            </div>
+
+            <div class="glass-card p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-sm font-black uppercase tracking-widest text-zinc-400">Conversión COP</h3>
+                    <span class="bg-blue-500/10 text-blue-400 text-[10px] font-black px-2 py-1 rounded">MERCADO 🇨🇴</span>
+                </div>
+                <div class="space-y-4">
+                    <div class="bg-zinc-900/50 p-4 rounded-2xl">
+                        <label class="text-[9px] uppercase font-black text-zinc-500 mb-2 block">Tasa de Cambio</label>
+                        <input type="number" id="exchange-rate" value="1050" oninput="convertCurrency()" class="bg-transparent text-xl font-bold w-full outline-none text-white">
+                    </div>
+                    <div class="p-5 bg-gradient-to-br from-amber-500 to-amber-600 rounded-3xl shadow-xl shadow-amber-500/10">
+                        <p class="text-[10px] uppercase font-black text-black/60 mb-1">Equivalente en Pesos</p>
+                        <div id="converted-amount" class="text-3xl font-black text-black tracking-tight">$ 0</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="modal-overlay" class="fixed inset-0 z-[100] hidden flex items-end sm:items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-md" onclick="closeModal()"></div>
+        <div class="glass-card w-full max-w-sm p-8 border-white/10 relative animate-in">
+            <h3 class="text-2xl font-black text-white mb-6 tracking-tight">Ajustes</h3>
+            <div class="mb-8">
+                <label class="text-[10px] uppercase font-black text-zinc-500 mb-2 block">Monto Mensual (S/)</label>
+                <input type="number" id="input-monthly" class="bg-zinc-800 w-full p-4 rounded-2xl text-2xl font-bold text-amber-500 outline-none border border-white/5 focus:border-amber-500">
+            </div>
+            <div class="grid grid-cols-1 gap-3">
+                <button onclick="updateMonthlyAmount()" class="w-full py-4 bg-white text-black rounded-2xl font-black text-sm active:scale-95 transition-transform">GUARDAR CAMBIOS</button>
+                <button onclick="deleteAction('all')" class="w-full py-4 bg-red-500/10 text-red-500 rounded-2xl text-sm font-bold active:scale-95 transition-transform">REINICIAR PLAN</button>
+            </div>
+        </div>
+    </div>
+
+    <nav class="fixed bottom-6 left-1/2 -translate-x-1/2 w-[92%] max-w-md h-20 nav-blur rounded-[32px] flex items-center justify-around px-8 shadow-2xl z-50 border border-white/10">
+        <button onclick="switchView('list')" id="btn-list" class="nav-btn text-amber-500 transform transition-all active:scale-75">
+            <svg width="28" height="28" fill="currentColor" viewBox="0 0 24 24"><path d="M19 5v14H5V5h14m0-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/><path d="M14 17H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+        </button>
+        <button onclick="openModal()" class="bg-amber-500 text-black w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg shadow-amber-500/20 active:scale-90 transition-transform">
+            <svg width="28" height="28" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+        </button>
+        <button onclick="switchView('charts')" id="btn-charts" class="nav-btn text-zinc-500 transform transition-all active:scale-75">
+            <svg width="28" height="28" fill="currentColor" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+        </button>
+    </nav>
+
+    <script>
+        const STORAGE_KEY = 'srSanchez_v6_final';
+        let state = { completedMonths: [], totalYears: 5, monthlyAmount: 714 };
+        let currentTotalSoles = 0;
+
+        function setDate() {
+            const options = { weekday: 'long', day: 'numeric', month: 'long' };
+            document.getElementById('current-date').innerText = new Date().toLocaleDateString('es-ES', options);
+        }
+
+        function loadState() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) state = JSON.parse(saved);
+            document.getElementById('monthly-display').innerText = state.monthlyAmount.toLocaleString();
+            document.getElementById('input-monthly').value = state.monthlyAmount;
+        }
+
+        function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+
+        function convertCurrency() {
+            const rate = parseFloat(document.getElementById('exchange-rate').value) || 0;
+            const cop = currentTotalSoles * rate;
+            document.getElementById('converted-amount').innerText = `$ ${cop.toLocaleString('es-CO')}`;
+        }
+
+        function updateUI() {
+            const container = document.getElementById('years-container');
+            container.innerHTML = '';
+            currentTotalSoles = 0;
+            const totalMonths = state.totalYears * 12;
+
+            for (let y = 1; y <= state.totalYears; y++) {
+                const yearDiv = document.createElement('div');
+                yearDiv.className = "mb-10 animate-in";
+                yearDiv.style.animationDelay = `${y * 0.05}s`;
+                yearDiv.innerHTML = `
+                    <div class="flex items-center justify-between mb-4 px-2">
+                        <h3 class="text-[11px] font-black uppercase tracking-[0.4em] text-amber-500/50">Año ${y}</h3>
+                        <button onclick="removeYear(${y})" class="text-zinc-700 p-1"><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path d="M6 18L18 6M6 6l12 12" /></svg></button>
+                    </div>
+                    <div class="grid grid-cols-1 gap-3" id="grid-y-${y}"></div>
+                `;
+                container.appendChild(yearDiv);
+                
+                const grid = document.getElementById(`grid-y-${y}`);
+                for (let m = 1; m <= 12; m++) {
+                    const id = (y - 1) * 12 + m;
+                    const isDone = state.completedMonths.includes(id);
+                    if (isDone) currentTotalSoles += state.monthlyAmount;
+
+                    const card = document.createElement('div');
+                    card.className = `step-card glass-card p-4 flex items-center justify-between ${isDone ? 'completed-card' : ''}`;
+                    card.onclick = () => toggleMonth(id);
+                    card.innerHTML = `
+                        <div class="flex items-center gap-4">
+                            <div class="w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs transition-all ${isDone ? 'bg-amber-500 text-black rotate-[360deg]' : 'bg-zinc-800 text-zinc-500'}">${id}</div>
+                            <div>
+                                <p class="text-[8px] uppercase font-black text-zinc-500 tracking-tighter">MES ${m}</p>
+                                <p class="text-md font-bold ${isDone ? 'text-white' : 'text-zinc-500'}">S/ ${state.monthlyAmount.toLocaleString()}</p>
+                            </div>
+                        </div>
+                        <div class="check-pop w-6 h-6 rounded-full border-2 border-zinc-800 flex items-center justify-center ${isDone ? 'bg-amber-500 border-amber-500 scale-110' : 'scale-100'}">
+                            ${isDone ? '<svg width="12" height="12" fill="none" stroke="black" viewBox="0 0 24 24" stroke-width="4"><path d="M5 13l4 4L19 7" /></svg>' : ''}
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                }
+            }
+
+            const totalGoal = state.monthlyAmount * totalMonths;
+            const percent = Math.round((currentTotalSoles / totalGoal) * 100) || 0;
+            
+            document.getElementById('total-saved').innerText = `S/ ${currentTotalSoles.toLocaleString()}`;
+            document.getElementById('main-progress').style.width = `${percent}%`;
+            document.getElementById('percent-text').innerText = `${percent}%`;
+            document.getElementById('steps-count').innerText = `${state.completedMonths.length} / ${totalMonths} MESES`;
+            document.getElementById('remaining-text').innerText = `FALTAN: S/ ${(totalGoal - currentTotalSoles).toLocaleString()}`;
+            
+            convertCurrency();
+        }
+
+        function toggleMonth(id) {
+            const idx = state.completedMonths.indexOf(id);
+            idx === -1 ? state.completedMonths.push(id) : state.completedMonths.splice(idx, 1);
+            updateUI();
+            saveState();
+        }
+
+        function switchView(view) {
+            const list = document.getElementById('view-list');
+            const charts = document.getElementById('view-charts');
+            const btnL = document.getElementById('btn-list');
+            const btnC = document.getElementById('btn-charts');
+
+            if (view === 'list') {
+                list.classList.remove('view-hidden');
+                charts.classList.add('view-hidden');
+                btnL.classList.add('text-amber-500');
+                btnL.classList.remove('text-zinc-500');
+                btnC.classList.add('text-zinc-500');
+                btnC.classList.remove('text-amber-500');
+                document.getElementById('view-title').innerText = "Sr. Sánchez";
+            } else {
+                list.classList.add('view-hidden');
+                charts.classList.remove('view-hidden');
+                btnC.classList.add('text-amber-500');
+                btnC.classList.remove('text-zinc-500');
+                btnL.classList.add('text-zinc-500');
+                btnL.classList.remove('text-amber-500');
+                document.getElementById('view-title').innerText = "Métricas";
+                initCharts();
+            }
+        }
+
+        let chartInstance = null;
+        function initCharts() {
+            const ctx = document.getElementById('savingsChart').getContext('2d');
+            if (chartInstance) chartInstance.destroy();
+            chartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Ahorrado', 'Pendiente'],
+                    datasets: [{
+                        data: [currentTotalSoles, (state.totalYears * 12 * state.monthlyAmount) - currentTotalSoles],
+                        backgroundColor: ['#f59e0b', 'rgba(255,255,255,0.05)'],
+                        borderWidth: 0,
+                        circumference: 180,
+                        rotation: 270
+                    }]
+                },
+                options: { cutout: '85%', plugins: { legend: { display: false } } }
+            });
+        }
+
+        function openModal() { 
+            const m = document.getElementById('modal-overlay');
+            m.classList.remove('hidden');
+            setTimeout(() => m.style.opacity = "1", 10);
+        }
+        function closeModal() { 
+            const m = document.getElementById('modal-overlay');
+            m.style.opacity = "0";
+            setTimeout(() => m.classList.add('hidden'), 300);
+        }
+
+        function updateMonthlyAmount() {
+            state.monthlyAmount = parseInt(document.getElementById('input-monthly').value) || 0;
+            document.getElementById('monthly-display').innerText = state.monthlyAmount.toLocaleString();
+            saveState(); updateUI(); closeModal();
+        }
+
+        function addYear() { state.totalYears++; updateUI(); saveState(); }
+        function removeYear(n) { if(confirm('¿Borrar año?')) { state.totalYears--; updateUI(); saveState(); } }
+        function deleteAction() { if(confirm('¿Reiniciar todo?')) { state.completedMonths = []; updateUI(); saveState(); closeModal(); } }
+
+        window.onload = () => { setDate(); loadState(); updateUI(); };
+    </script>
+</body>
+</html>
